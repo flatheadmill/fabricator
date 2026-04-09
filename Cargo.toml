@@ -1,0 +1,21 @@
+[package]
+name = "fabricator"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "merge"
+path = "src/merge.rs"
+
+[[bin]]
+name = "ingest"
+path = "src/ingest.rs"
+
+[[bin]]
+name = "intersects"
+path = "src/intersects.rs"
+
+[dependencies]
+serde_json = "1"
+tantivy = { git = "ssh://git@github.com/flatheadmill/tantivy.git", branch = "geo" }
+clap = { version = "4", features = ["derive"] }
