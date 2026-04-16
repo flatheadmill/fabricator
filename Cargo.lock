@@ -820,7 +820,7 @@ dependencies = [
 [[package]]
 name = "ownedbytes"
 version = "0.9.0"
-source = "git+ssh://git@github.com/flatheadmill/tantivy.git?branch=geo#ba9aeb28d30426d5fbc41e0c9ce4d35a11ea9b5f"
+source = "git+ssh://git@github.com/flatheadmill/tantivy.git?branch=geo#91d693f807dfdea28d0de79aa37fb7a45e5ea682"
 dependencies = [
  "stable_deref_trait",
 ]
@@ -1094,7 +1094,7 @@ dependencies = [
 [[package]]
 name = "tantivy"
 version = "0.26.0"
-source = "git+ssh://git@github.com/flatheadmill/tantivy.git?branch=geo#ba9aeb28d30426d5fbc41e0c9ce4d35a11ea9b5f"
+source = "git+ssh://git@github.com/flatheadmill/tantivy.git?branch=geo#91d693f807dfdea28d0de79aa37fb7a45e5ea682"
 dependencies = [
  "aho-corasick",
  "arc-swap",
@@ -1151,7 +1151,7 @@ dependencies = [
 [[package]]
 name = "tantivy-bitpacker"
 version = "0.9.0"
-source = "git+ssh://git@github.com/flatheadmill/tantivy.git?branch=geo#ba9aeb28d30426d5fbc41e0c9ce4d35a11ea9b5f"
+source = "git+ssh://git@github.com/flatheadmill/tantivy.git?branch=geo#91d693f807dfdea28d0de79aa37fb7a45e5ea682"
 dependencies = [
  "bitpacking",
 ]
@@ -1159,7 +1159,7 @@ dependencies = [
 [[package]]
 name = "tantivy-columnar"
 version = "0.6.0"
-source = "git+ssh://git@github.com/flatheadmill/tantivy.git?branch=geo#ba9aeb28d30426d5fbc41e0c9ce4d35a11ea9b5f"
+source = "git+ssh://git@github.com/flatheadmill/tantivy.git?branch=geo#91d693f807dfdea28d0de79aa37fb7a45e5ea682"
 dependencies = [
  "downcast-rs",
  "fastdivide",
@@ -1174,7 +1174,7 @@ dependencies = [
 [[package]]
 name = "tantivy-common"
 version = "0.10.0"
-source = "git+ssh://git@github.com/flatheadmill/tantivy.git?branch=geo#ba9aeb28d30426d5fbc41e0c9ce4d35a11ea9b5f"
+source = "git+ssh://git@github.com/flatheadmill/tantivy.git?branch=geo#91d693f807dfdea28d0de79aa37fb7a45e5ea682"
 dependencies = [
  "async-trait",
  "byteorder",
@@ -1197,7 +1197,7 @@ dependencies = [
 [[package]]
 name = "tantivy-query-grammar"
 version = "0.25.0"
-source = "git+ssh://git@github.com/flatheadmill/tantivy.git?branch=geo#ba9aeb28d30426d5fbc41e0c9ce4d35a11ea9b5f"
+source = "git+ssh://git@github.com/flatheadmill/tantivy.git?branch=geo#91d693f807dfdea28d0de79aa37fb7a45e5ea682"
 dependencies = [
  "fnv",
  "nom",
@@ -1209,7 +1209,7 @@ dependencies = [
 [[package]]
 name = "tantivy-sstable"
 version = "0.6.0"
-source = "git+ssh://git@github.com/flatheadmill/tantivy.git?branch=geo#ba9aeb28d30426d5fbc41e0c9ce4d35a11ea9b5f"
+source = "git+ssh://git@github.com/flatheadmill/tantivy.git?branch=geo#91d693f807dfdea28d0de79aa37fb7a45e5ea682"
 dependencies = [
  "futures-util",
  "itertools",
@@ -1222,7 +1222,7 @@ dependencies = [
 [[package]]
 name = "tantivy-stacker"
 version = "0.6.0"
-source = "git+ssh://git@github.com/flatheadmill/tantivy.git?branch=geo#ba9aeb28d30426d5fbc41e0c9ce4d35a11ea9b5f"
+source = "git+ssh://git@github.com/flatheadmill/tantivy.git?branch=geo#91d693f807dfdea28d0de79aa37fb7a45e5ea682"
 dependencies = [
  "murmurhash32",
  "tantivy-common",
@@ -1231,7 +1231,7 @@ dependencies = [
 [[package]]
 name = "tantivy-tokenizer-api"
 version = "0.6.0"
-source = "git+ssh://git@github.com/flatheadmill/tantivy.git?branch=geo#ba9aeb28d30426d5fbc41e0c9ce4d35a11ea9b5f"
+source = "git+ssh://git@github.com/flatheadmill/tantivy.git?branch=geo#91d693f807dfdea28d0de79aa37fb7a45e5ea682"
 dependencies = [
  "serde",
 ]

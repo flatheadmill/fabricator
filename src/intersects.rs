@@ -30,6 +30,10 @@ struct Args {
     /// Latitude high.
     #[arg(long)]
     lat_hi: f64,
+
+    /// Number of iterations.
+    #[arg(long, default_value_t = 1)]
+    iterations: usize,
 }
 
 fn main() -> tantivy::Result<()> {
@@ -46,11 +50,24 @@ fn main() -> tantivy::Result<()> {
 
     let query = SpatialQuery::intersects_bounds(field, bounds);
 
-    let start = Instant::now();
-    let hits = searcher.search(&query, &Count)?;
-    let elapsed = start.elapsed();
+    // Warm-up.
+    let _ = searcher.search(&query, &Count)?;
 
-    eprintln!("{} hits in {:.3}ms", hits, elapsed.as_secs_f64() * 1000.0);
+    let start = Instant::now();
+    let mut hits = 0;
+    for _ in 0..args.iterations {
+        hits = searcher.search(&query, &Count)?;
+    }
+    let elapsed = start.elapsed();
+    let per_query = elapsed / args.iterations as u32;
+
+    eprintln!("{} hits", hits);
+    eprintln!(
+        "{} iterations in {:.3}s ({:.3}ms per query)",
+        args.iterations,
+        elapsed.as_secs_f64(),
+        per_query.as_secs_f64() * 1000.0,
+    );
 
     Ok(())
 }

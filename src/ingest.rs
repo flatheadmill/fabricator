@@ -1,6 +1,8 @@
 // Ingest newline-delimited GeoJSON into a tantivy index. Each line is a GeoJSON
 // Feature with properties and geometry. No merging is performed; use the merge
 // tool to consolidate segments afterward.
+//
+// Normalizes polygon winding order to RFC 7946: outer rings CCW, holes CW.
 
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -34,6 +36,82 @@ struct Args {
     memory_gb: usize,
 }
 
+// Signed area of a ring using the shoelace formula. Positive means CCW.
+fn signed_area(ring: &[serde_json::Value]) -> f64 {
+    let n = ring.len();
+    if n < 3 {
+        return 0.0;
+    }
+    let mut sum = 0.0;
+    for i in 0..n {
+        let j = (i + 1) % n;
+        let xi = ring[i][0].as_f64().unwrap_or(0.0);
+        let yi = ring[i][1].as_f64().unwrap_or(0.0);
+        let xj = ring[j][0].as_f64().unwrap_or(0.0);
+        let yj = ring[j][1].as_f64().unwrap_or(0.0);
+        sum += xi * yj - xj * yi;
+    }
+    sum / 2.0
+}
+
+// Normalize a polygon's rings: outer CCW, holes CW. Returns the number of rings reversed.
+fn normalize_polygon(rings: &mut Vec<serde_json::Value>) -> usize {
+    let mut reversed = 0;
+    for (i, ring) in rings.iter_mut().enumerate() {
+        let coords = match ring.as_array_mut() {
+            Some(c) => c,
+            None => continue,
+        };
+        let area = signed_area(coords);
+        if i == 0 {
+            // Outer ring should be CCW (positive area).
+            if area < 0.0 {
+                coords.reverse();
+                reversed += 1;
+            }
+        } else {
+            // Hole should be CW (negative area).
+            if area > 0.0 {
+                coords.reverse();
+                reversed += 1;
+            }
+        }
+    }
+    reversed
+}
+
+// Normalize geometry in place. Returns the number of rings reversed.
+fn normalize_geometry(geometry: &mut serde_json::Value) -> usize {
+    let gtype = geometry
+        .get("type")
+        .and_then(|t| t.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    match gtype.as_str() {
+        "Polygon" => {
+            if let Some(rings) = geometry.get_mut("coordinates").and_then(|c| c.as_array_mut()) {
+                return normalize_polygon(rings);
+            }
+            0
+        }
+        "MultiPolygon" => {
+            let mut total = 0;
+            if let Some(polygons) =
+                geometry.get_mut("coordinates").and_then(|c| c.as_array_mut())
+            {
+                for polygon in polygons.iter_mut() {
+                    if let Some(rings) = polygon.as_array_mut() {
+                        total += normalize_polygon(rings);
+                    }
+                }
+            }
+            total
+        }
+        _ => 0,
+    }
+}
+
 fn main() -> tantivy::Result<()> {
     let args = Args::parse();
 
@@ -60,20 +138,22 @@ fn main() -> tantivy::Result<()> {
     let mut count = 0usize;
     let mut batch = 0usize;
     let mut skipped = 0usize;
+    let mut rings_reversed = 0usize;
+    let mut docs_with_reversed = 0usize;
 
     for line in reader.lines() {
         let line = line.expect("could not read line");
         if line.trim().is_empty() {
             continue;
         }
-        let feature: serde_json::Value = match serde_json::from_str(&line) {
+        let mut feature: serde_json::Value = match serde_json::from_str(&line) {
             Ok(v) => v,
             Err(_) => {
                 skipped += 1;
                 continue;
             }
         };
-        let obj = match feature.as_object() {
+        let obj = match feature.as_object_mut() {
             Some(o) => o,
             None => {
                 skipped += 1;
@@ -84,17 +164,25 @@ fn main() -> tantivy::Result<()> {
             .get("properties")
             .and_then(|p| p.get("name"))
             .and_then(|n| n.as_str())
-            .unwrap_or("");
-        let geometry = match obj.get("geometry") {
+            .unwrap_or("")
+            .to_string();
+        let geometry = match obj.get_mut("geometry") {
             Some(g) => g,
             None => {
                 skipped += 1;
                 continue;
             }
         };
+
+        let reversed = normalize_geometry(geometry);
+        if reversed > 0 {
+            rings_reversed += reversed;
+            docs_with_reversed += 1;
+        }
+
         let doc_json = format!(
             r#"{{"name":{},"geometry":{}}}"#,
-            serde_json::Value::String(name.to_string()),
+            serde_json::Value::String(name),
             geometry,
         );
         let doc = match TantivyDocument::parse_json(&schema, &doc_json) {
@@ -133,6 +221,10 @@ fn main() -> tantivy::Result<()> {
         searcher.segment_readers().len(),
         count,
         skipped,
+    );
+    eprintln!(
+        "{} rings reversed in {} documents",
+        rings_reversed, docs_with_reversed,
     );
 
     Ok(())
