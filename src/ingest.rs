@@ -9,7 +9,7 @@ use std::io::{BufRead, BufReader};
 
 use clap::Parser;
 use tantivy::indexer::NoMergePolicy;
-use tantivy::schema::{Schema, SPATIAL, STORED, STRING};
+use tantivy::schema::{Schema, PLANE, SPHERE, STORED, STRING};
 use tantivy::{Index, IndexWriter, TantivyDocument};
 
 #[derive(Parser)]
@@ -34,6 +34,10 @@ struct Args {
     /// Writer memory budget in gigabytes.
     #[arg(long, default_value_t = 1)]
     memory_gb: usize,
+
+    /// Use planar (2D) indexing instead of unit sphere.
+    #[arg(long)]
+    plane: bool,
 }
 
 // Signed area of a ring using the shoelace formula. Positive means CCW.
@@ -117,7 +121,8 @@ fn main() -> tantivy::Result<()> {
 
     let mut schema_builder = Schema::builder();
     schema_builder.add_text_field("name", STRING | STORED);
-    schema_builder.add_spatial_field("geometry", SPATIAL);
+    let spatial_opts = if args.plane { PLANE } else { SPHERE };
+    schema_builder.add_spatial_field("geometry", spatial_opts);
     let schema = schema_builder.build();
 
     std::fs::create_dir_all(&args.dir).expect("could not create index directory");

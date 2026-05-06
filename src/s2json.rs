@@ -7,6 +7,7 @@ use tantivy::spatial::cell_index_reader::CellIndexReader;
 use tantivy::spatial::edge_cache::EdgeCache;
 use tantivy::spatial::edge_reader::EdgeReader;
 use tantivy::spatial::sphere::Sphere;
+use tantivy::spatial::surface::Surface;
 use tantivy::Index;
 
 #[derive(Parser)]
@@ -58,7 +59,7 @@ fn main() -> tantivy::Result<()> {
             } else {
                 0
             };
-            let center = cell.cell_id.to_point();
+            let center = Sphere::cell_center(cell.cell_id);
             let lat = center[2].asin().to_degrees();
             let lon = center[1].atan2(center[0]).to_degrees();
             write!(
