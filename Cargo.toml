@@ -12,8 +12,8 @@ name = "ingest"
 path = "src/ingest.rs"
 
 [[bin]]
-name = "intersects"
-path = "src/intersects.rs"
+name = "search"
+path = "src/search.rs"
 
 [[bin]]
 name = "probe"

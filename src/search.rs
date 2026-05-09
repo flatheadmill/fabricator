@@ -1,4 +1,4 @@
-// Query a spatial index for geometries that intersect a bounding box or polygon.
+// Query a spatial index with a bounding box or polygon.
 //
 // Bounding box: --query "-85.28,44.63,-85.08,44.83"
 // GeoJSON file: --query leelanau.json
@@ -7,12 +7,13 @@ use std::fs;
 use std::time::Instant;
 
 use clap::Parser;
-use tantivy::collector::Count;
+use tantivy::collector::{Count, DocSetCollector};
 use tantivy::query::{SpatialPredicate, SpatialQuery};
-use tantivy::Index;
+use tantivy::schema::Value;
+use tantivy::{Index, TantivyDocument};
 
 #[derive(Parser)]
-#[command(about = "Find geometries that intersect a bounding box or polygon")]
+#[command(about = "Spatial query against a tantivy index")]
 #[command(allow_negative_numbers = true)]
 struct Args {
     /// Path to an existing index directory.
@@ -23,13 +24,27 @@ struct Args {
     #[arg(long)]
     query: String,
 
+    /// Query kind: intersects or contains.
+    #[arg(long, default_value = "intersects")]
+    kind: String,
+
     /// Number of iterations.
     #[arg(long, default_value_t = 10)]
     iterations: usize,
+
+    /// Print properties of each result.
+    #[arg(long)]
+    names: bool,
 }
 
 fn main() -> tantivy::Result<()> {
     let args = Args::parse();
+
+    let predicate = match args.kind.as_str() {
+        "intersects" => SpatialPredicate::Intersects,
+        "contains" => SpatialPredicate::Contains,
+        _ => panic!("kind must be 'intersects' or 'contains'"),
+    };
 
     let index = Index::open_in_dir(&args.dir)?;
     let schema = index.schema();
@@ -39,7 +54,13 @@ fn main() -> tantivy::Result<()> {
         let parts: Vec<f64> = args.query.split(',').map(|s| s.trim().parse().expect("invalid coordinate")).collect();
         assert_eq!(parts.len(), 4, "bounding box needs 4 values: lon_lo,lat_lo,lon_hi,lat_hi");
         let bounds = [[parts[0], parts[1]], [parts[2], parts[3]]];
-        vec![SpatialQuery::intersects_bounds(field, bounds)]
+        let ring = vec![
+            [bounds[0][0], bounds[0][1]],
+            [bounds[1][0], bounds[0][1]],
+            [bounds[1][0], bounds[1][1]],
+            [bounds[0][0], bounds[1][1]],
+        ];
+        vec![SpatialQuery::with_predicate(field, ring, predicate.clone())]
     } else {
         let geojson: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&args.query).expect("could not read file"))
@@ -61,7 +82,7 @@ fn main() -> tantivy::Result<()> {
         };
 
         rings.into_iter().map(|ring| {
-            SpatialQuery::with_predicate(field, ring, SpatialPredicate::Intersects)
+            SpatialQuery::with_predicate(field, ring, predicate.clone())
         }).collect()
     };
 
@@ -91,6 +112,21 @@ fn main() -> tantivy::Result<()> {
         elapsed.as_secs_f64(),
         per_query.as_secs_f64() * 1000.0,
     );
+
+    if args.names {
+        let name_field = schema.get_field("name").unwrap();
+        for q in &queries {
+            let doc_addrs = searcher.search(q, &DocSetCollector)?;
+            for addr in doc_addrs {
+                let doc: TantivyDocument = searcher.doc(addr)?;
+                let name = doc
+                    .get_first(name_field)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("(unnamed)");
+                eprintln!("{} doc_id={}", name, addr.doc_id);
+            }
+        }
+    }
 
     Ok(())
 }
