@@ -88,7 +88,11 @@ fn main() -> tantivy::Result<()> {
     }
 
     let elapsed = start.elapsed();
-    eprintln!("{} hits in {:.3}ms", total_hits, elapsed.as_secs_f64() * 1000.0);
+    eprintln!(
+        "{} hits in {:.3}ms",
+        total_hits,
+        elapsed.as_secs_f64() * 1000.0
+    );
 
     Ok(())
 }

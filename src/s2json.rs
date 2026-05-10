@@ -29,8 +29,9 @@ fn main() -> tantivy::Result<()> {
     let searcher = reader.searcher();
 
     let filename = format!("{}/cells.jsonl", args.dir);
-    let mut out =
-        std::io::BufWriter::new(std::fs::File::create(&filename).expect("could not create output file"));
+    let mut out = std::io::BufWriter::new(
+        std::fs::File::create(&filename).expect("could not create output file"),
+    );
 
     let mut total_cells = 0u32;
 

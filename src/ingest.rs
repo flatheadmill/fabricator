@@ -94,15 +94,19 @@ fn normalize_geometry(geometry: &mut serde_json::Value) -> usize {
 
     match gtype.as_str() {
         "Polygon" => {
-            if let Some(rings) = geometry.get_mut("coordinates").and_then(|c| c.as_array_mut()) {
+            if let Some(rings) = geometry
+                .get_mut("coordinates")
+                .and_then(|c| c.as_array_mut())
+            {
                 return normalize_polygon(rings);
             }
             0
         }
         "MultiPolygon" => {
             let mut total = 0;
-            if let Some(polygons) =
-                geometry.get_mut("coordinates").and_then(|c| c.as_array_mut())
+            if let Some(polygons) = geometry
+                .get_mut("coordinates")
+                .and_then(|c| c.as_array_mut())
             {
                 for polygon in polygons.iter_mut() {
                     if let Some(rings) = polygon.as_array_mut() {

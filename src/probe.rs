@@ -54,7 +54,11 @@ fn main() -> tantivy::Result<()> {
             .get_first(name_field)
             .and_then(|v| v.as_value().as_str().map(|s| s.to_string()))
             .unwrap_or_else(|| "(unnamed)".to_string());
-        let name = if name.is_empty() { "(unnamed)".to_string() } else { name };
+        let name = if name.is_empty() {
+            "(unnamed)".to_string()
+        } else {
+            name
+        };
         println!("{}", name);
         printed += 1;
         if printed >= args.limit {
