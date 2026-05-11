@@ -32,9 +32,13 @@ struct Args {
     #[arg(long, default_value_t = 10)]
     iterations: usize,
 
-    /// Print properties of each result.
+    /// Print name of each result.
     #[arg(long)]
     names: bool,
+
+    /// Print full properties of each result.
+    #[arg(long)]
+    properties: bool,
 }
 
 fn main() -> tantivy::Result<()> {
@@ -43,7 +47,8 @@ fn main() -> tantivy::Result<()> {
     let predicate = match args.kind.as_str() {
         "intersects" => SpatialPredicate::Intersects,
         "contains" => SpatialPredicate::Contains,
-        _ => panic!("kind must be 'intersects' or 'contains'"),
+        "within" => SpatialPredicate::CoveredBy,
+        _ => panic!("kind must be 'intersects', 'contains', or 'within'"),
     };
 
     let index = Index::open_in_dir(&args.dir)?;
@@ -128,8 +133,10 @@ fn main() -> tantivy::Result<()> {
         per_query.as_secs_f64() * 1000.0,
     );
 
-    if args.names {
+    if args.names || args.properties {
         let name_field = schema.get_field("name").unwrap();
+        let props_field = schema.get_field("properties").ok();
+        let type_field = schema.get_field("geom_type").ok();
         for q in &queries {
             let doc_addrs = searcher.search(q, &DocSetCollector)?;
             for addr in doc_addrs {
@@ -138,7 +145,19 @@ fn main() -> tantivy::Result<()> {
                     .get_first(name_field)
                     .and_then(|v| v.as_str())
                     .unwrap_or("(unnamed)");
-                eprintln!("{} doc_id={}", name, addr.doc_id);
+                let geom_type = type_field
+                    .and_then(|f| doc.get_first(f))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                if args.properties {
+                    let props = props_field
+                        .and_then(|f| doc.get_first(f))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("{}");
+                    eprintln!("{} [{}] doc_id={} {}", name, geom_type, addr.doc_id, props);
+                } else {
+                    eprintln!("{} [{}] doc_id={}", name, geom_type, addr.doc_id);
+                }
             }
         }
     }
