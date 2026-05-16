@@ -9,7 +9,7 @@ use std::io::{BufRead, BufReader};
 
 use clap::Parser;
 use tantivy::indexer::NoMergePolicy;
-use tantivy::schema::{Schema, PLANE, SPHERE, STORED, STRING};
+use tantivy::schema::{JsonObjectOptions, Schema, PLANE, SPHERE, STORED, STRING, TEXT};
 use tantivy::{Index, IndexWriter, TantivyDocument};
 
 #[derive(Parser)]
@@ -125,6 +125,8 @@ fn main() -> tantivy::Result<()> {
 
     let mut schema_builder = Schema::builder();
     schema_builder.add_text_field("name", STRING | STORED);
+    schema_builder.add_json_field("properties", JsonObjectOptions::from(TEXT | STORED));
+    schema_builder.add_text_field("geom_type", STRING | STORED);
     let spatial_opts = if args.plane { PLANE } else { SPHERE };
     schema_builder.add_spatial_field("geometry", spatial_opts);
     let schema = schema_builder.build();
@@ -169,6 +171,10 @@ fn main() -> tantivy::Result<()> {
                 continue;
             }
         };
+        let properties = obj
+            .get("properties")
+            .cloned()
+            .unwrap_or_else(|| serde_json::Value::Object(serde_json::Map::new()));
         let name = obj
             .get("properties")
             .and_then(|p| p.get("name"))
@@ -182,6 +188,11 @@ fn main() -> tantivy::Result<()> {
                 continue;
             }
         };
+        let geom_type = geometry
+            .get("type")
+            .and_then(|t| t.as_str())
+            .unwrap_or("")
+            .to_string();
 
         let reversed = normalize_geometry(geometry);
         if reversed > 0 {
@@ -190,8 +201,10 @@ fn main() -> tantivy::Result<()> {
         }
 
         let doc_json = format!(
-            r#"{{"name":{},"geometry":{}}}"#,
+            r#"{{"name":{},"properties":{},"geom_type":{},"geometry":{}}}"#,
             serde_json::Value::String(name),
+            properties,
+            serde_json::Value::String(geom_type),
             geometry,
         );
         let doc = match TantivyDocument::parse_json(&schema, &doc_json) {

@@ -39,6 +39,10 @@ struct Args {
     /// Print full properties of each result.
     #[arg(long)]
     properties: bool,
+
+    /// Distance in meters (for --kind distance).
+    #[arg(long)]
+    distance: Option<f64>,
 }
 
 fn main() -> tantivy::Result<()> {
@@ -48,7 +52,14 @@ fn main() -> tantivy::Result<()> {
         "intersects" => SpatialPredicate::Intersects,
         "contains" => SpatialPredicate::Contains,
         "within" => SpatialPredicate::CoveredBy,
-        _ => panic!("kind must be 'intersects', 'contains', or 'within'"),
+        "distance" => {
+            let meters = args
+                .distance
+                .expect("--distance required for --kind distance");
+            let radians = meters / 6_371_000.0;
+            SpatialPredicate::DistanceWithin(radians)
+        }
+        _ => panic!("kind must be 'intersects', 'contains', 'within', or 'distance'"),
     };
 
     let index = Index::open_in_dir(&args.dir)?;

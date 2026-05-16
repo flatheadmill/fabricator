@@ -1,3 +1,5 @@
 /target
 /indexes
 *.json.gz
+toggles.txt
+trace.txt
