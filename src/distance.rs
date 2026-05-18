@@ -6,13 +6,13 @@ use std::time::Instant;
 
 use clap::Parser;
 use tantivy::spatial::cell_index_reader::CellIndexReader;
-use tantivy::spatial::closest_edge_query::ClosestEdgeQuery;
+use tantivy::spatial::distance::Distance;
 use tantivy::spatial::edge_cache::EdgeCache;
 use tantivy::spatial::edge_reader::EdgeReader;
 use tantivy::spatial::geometry::Geometry;
 use tantivy::spatial::geometry_set::to_geometry_set;
 use tantivy::spatial::plane::Plane;
-use tantivy::spatial::s1chord_angle::S1ChordAngle;
+use tantivy::spatial::region_coverer::CovererOptions;
 use tantivy::spatial::sphere::Sphere;
 use tantivy::Index;
 
@@ -62,8 +62,7 @@ fn main() -> tantivy::Result<()> {
     let set = to_geometry_set(&projected, 0);
 
     let radius_radians = args.radius / EARTH_RADIUS_METERS;
-    let max_distance = S1ChordAngle::from_radians(radius_radians);
-    let query = ClosestEdgeQuery::within(set, max_distance);
+    let query = Distance::<Sphere>::new(set, radius_radians, CovererOptions::default());
 
     let index = Index::open_in_dir(&args.dir)?;
     let schema = index.schema();
@@ -82,8 +81,8 @@ fn main() -> tantivy::Result<()> {
             let edge_reader = EdgeReader::<Sphere>::open(spatial_reader.edges_bytes());
             let mut edge_cache = EdgeCache::new(vec![edge_reader], 100_000);
 
-            let results = query.search_segment(&cell_reader, &mut edge_cache);
-            total_hits += results.len();
+            let bitset = query.search(&cell_reader, None, &mut edge_cache, seg.max_doc());
+            total_hits += bitset.len();
         }
     }
 
