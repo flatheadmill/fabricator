@@ -86,7 +86,7 @@
   "filter": {
     "mode": "none"
   },
-  "sidecar": true,
+  "sidecar": false,
   "margin": 1e-09,
   "expected": {
     "oracle_version": "intersects-uv-v1",

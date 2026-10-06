@@ -34,6 +34,10 @@ judged before filtering, including documents excluded from the semantic result.
 The reference uses the engine's projection and proper-crossing arithmetic, but
 no engine geometry sets, coverings or indexed containment state.
 
+The normal-ingestion cases use sidecar=false. The fresh-segment writer does not
+populate the cell doc-ID sidecar. A worker asked to use a missing sidecar fails
+before the query; these cases do not claim to exercise that reader capability.
+
 Checks proceed through case metadata and IDs, raw structure and coordinates,
 margin and size limits, supported families, projected ring validity and
 clearance, and document/query boundary incidence before computing witnesses.

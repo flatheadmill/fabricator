@@ -7,7 +7,7 @@ use tantivy::spatial::sphere::Sphere;
 use tantivy::spatial::surface::Surface;
 
 use super::case::{
-    AmbiguousReason, Case, Family, Geometry, InvalidReason, Location, Point, Rejection,
+    AmbiguousReason, Case, Family, Geometry, InvalidReason, Location, Point, Reason, Rejection,
     SurfaceKind, UnsupportedReason, ORACLE_VERSION,
 };
 
@@ -46,6 +46,14 @@ struct Member<S: Surface> {
     closed: bool,
     points: Vec<S::Point>,
     uv: Vec<Point>,
+}
+
+fn ambiguous(location: Location, family: Family, reason: AmbiguousReason) -> Rejection {
+    Rejection {
+        location,
+        family: Some(family),
+        reason: Reason::Ambiguous { reason },
+    }
 }
 
 fn crosses(a: Point, b: Point, c: Point, d: Point) -> bool {
@@ -87,7 +95,7 @@ fn validate_ring(
     margin: f64,
 ) -> Result<(), Rejection> {
     let invalid = |at, reason| Rejection::invalid(at, Some(family), reason);
-    let ambiguous = |at, reason| Rejection::ambiguous(at, family, reason);
+    let uncertain = |at, reason| ambiguous(at, family, reason);
     let n = uv.len() - 1;
     for (i, edge) in uv.windows(2).enumerate() {
         if edge[0] == edge[1] {
@@ -115,7 +123,7 @@ fn validate_ring(
     }
     for (i, edge) in uv.windows(2).enumerate() {
         if (edge[0][0] - edge[1][0]).hypot(edge[0][1] - edge[1][1]) <= margin {
-            return Err(ambiguous(
+            return Err(uncertain(
                 location.at(&format!("/{i}")),
                 AmbiguousReason::ShortEdge,
             ));
@@ -123,7 +131,7 @@ fn validate_ring(
     }
     for i in 0..n {
         if orient2d(&uv[(i + n - 1) % n], &uv[i], &uv[(i + 1) % n]) == 0.0 {
-            return Err(ambiguous(
+            return Err(uncertain(
                 location.at(&format!("/{i}")),
                 AmbiguousReason::CollinearVertex,
             ));
@@ -138,7 +146,7 @@ fn validate_ring(
                 || distance_to_edge(c, a, b) <= margin
                 || distance_to_edge(d, a, b) <= margin
             {
-                return Err(ambiguous(
+                return Err(uncertain(
                     location.at(&format!("/{i}")),
                     AmbiguousReason::RingClearance,
                 ));
@@ -300,7 +308,7 @@ fn evaluate_surface<S: Surface>(case: &Case) -> Result<Judgment, Rejection> {
         let geometry = project::<S>(&doc.geometry, &at, case.margin)?;
         // Excluded documents can still affect index subdivision and failures.
         if boundary_incidence(&geometry, &query, case.margin) {
-            return Err(Rejection::ambiguous(
+            return Err(ambiguous(
                 at,
                 doc.geometry.family(),
                 AmbiguousReason::BoundaryIncidence,

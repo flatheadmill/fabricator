@@ -142,14 +142,6 @@ impl Rejection {
             reason: Reason::Unsupported { reason },
         }
     }
-
-    pub fn ambiguous(location: Location, family: Family, reason: AmbiguousReason) -> Self {
-        Self {
-            location,
-            family: Some(family),
-            reason: Reason::Ambiguous { reason },
-        }
-    }
 }
 
 impl Geometry {

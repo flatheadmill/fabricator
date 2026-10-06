@@ -39,9 +39,21 @@ path = "src/stats.rs"
 name = "predicate"
 path = "tests/predicate.rs"
 
+[[bin]]
+name = "predicate"
+path = "src/predicate/main.rs"
+
+[[test]]
+name = "predicate_worker"
+path = "tests/predicate_worker.rs"
+
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tantivy = { path = "../tantivy" }
 clap = { version = "4", features = ["derive"] }
 common = { package = "tantivy-common", path = "../tantivy/common" }
+sha2 = "0.10"
+
+[dev-dependencies]
+tempfile = "3"
