@@ -7,6 +7,7 @@ use std::time::{Duration, Instant};
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
+use super::calibration;
 use super::case::{Case, Rejection};
 use super::oracle;
 use super::protocol::{
@@ -782,9 +783,10 @@ pub fn preflight(
 pub struct Corpus {
     pub version: u32,
     pub cases: Vec<String>,
+    pub calibration: Option<calibration::Plan>,
 }
 
-pub fn case_paths(input: &Path, bytes: &[u8]) -> Result<Vec<PathBuf>> {
+pub fn replay_input(input: &Path, bytes: &[u8]) -> Result<(Vec<PathBuf>, Option<Corpus>)> {
     let value = serde_json::from_slice::<serde_json::Value>(bytes);
     if value
         .as_ref()
@@ -795,9 +797,9 @@ pub fn case_paths(input: &Path, bytes: &[u8]) -> Result<Vec<PathBuf>> {
             return Err("corpus requires version 1 and at least one case".into());
         }
         let source = input.parent().ok_or("input has no parent directory")?;
-        corpus
+        let paths = corpus
             .cases
-            .into_iter()
+            .iter()
             .map(|case| {
                 if case.is_empty() || !Path::new(&case).is_relative() {
                     Err("corpus case paths must be nonempty and relative".into())
@@ -805,9 +807,10 @@ pub fn case_paths(input: &Path, bytes: &[u8]) -> Result<Vec<PathBuf>> {
                     Ok(source.join(case))
                 }
             })
-            .collect()
+            .collect::<Result<Vec<_>>>()?;
+        Ok((paths, Some(corpus)))
     } else {
-        Ok(vec![input.to_owned()])
+        Ok((vec![input.to_owned()], None))
     }
 }
 
@@ -974,6 +977,8 @@ pub struct RunReport {
     pub manifest: String,
     pub canonical_input: Option<String>,
     pub canonical_manifest: Option<String>,
+    #[serde(default)]
+    pub corpus: Option<Corpus>,
     pub reference: Option<ReferenceIdentity>,
     pub workers: Option<VerifiedWorkers>,
     pub cases: Vec<CaseObservation>,
@@ -1017,6 +1022,8 @@ fn replay_inner(
     report.canonical_input = Some(path_string(&input)?);
     let input_bytes = fs::read(&input)?;
     fs::write(root.join("input.json"), &input_bytes)?;
+    let (paths, corpus) = replay_input(&input, &input_bytes)?;
+    report.corpus = corpus;
     let manifest_path = request.workers.canonicalize()?;
     report.canonical_manifest = Some(path_string(&manifest_path)?);
     let manifest_bytes = fs::read(&manifest_path)?;
@@ -1033,7 +1040,7 @@ fn replay_inner(
     )?);
     let cases_root = root.join("cases");
     fs::create_dir(&cases_root)?;
-    for (number, source) in case_paths(&input, &input_bytes)?.into_iter().enumerate() {
+    for (number, source) in paths.into_iter().enumerate() {
         let case_root = cases_root.join(format!("{number:04}"));
         let bytes = if source == input {
             Ok(input_bytes.clone())
@@ -1101,6 +1108,7 @@ pub fn replay_with_reference(
         manifest: path_string(&request.workers)?,
         canonical_input: None,
         canonical_manifest: None,
+        corpus: None,
         reference: None,
         workers: None,
         cases: Vec::new(),
@@ -1112,6 +1120,9 @@ pub fn replay_with_reference(
         report.error = Some(error.to_string());
     }
     protocol::write_json(&root.join("report.json"), &report)?;
+    if let Some(calibration) = calibration::evaluate(&report)? {
+        protocol::write_json(&root.join("calibration.json"), &calibration)?;
+    }
     if let Some(error) = &report.error {
         eprintln!("{error}");
     }

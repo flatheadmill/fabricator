@@ -1,0 +1,209 @@
+{
+  "version": 1,
+  "cases": [
+    "plane_later_member_crossing.json",
+    "plane_later_member_containment.json",
+    "plane_constructed_unequal_members.json",
+    "sphere_later_member_crossing.json",
+    "sphere_later_member_containment.json",
+    "sphere_constructed_unequal_members.json",
+    "plane_later_member_crossing_reversed.json",
+    "plane_later_member_crossing_empty_include.json",
+    "plane_later_member_containment_reversed.json",
+    "plane_later_member_containment_empty_include.json",
+    "plane_constructed_unequal_members_reversed.json",
+    "plane_constructed_unequal_members_empty_include.json",
+    "sphere_later_member_crossing_reversed.json",
+    "sphere_later_member_crossing_empty_include.json",
+    "sphere_later_member_containment_reversed.json",
+    "sphere_later_member_containment_empty_include.json",
+    "sphere_constructed_unequal_members_reversed.json",
+    "sphere_constructed_unequal_members_empty_include.json",
+    "plane_later_member_crossing_all.json",
+    "plane_later_member_crossing_include_target.json",
+    "plane_later_member_crossing_exclude_target.json",
+    "sphere_later_member_crossing_all.json",
+    "sphere_later_member_crossing_include_target.json",
+    "sphere_later_member_crossing_exclude_target.json",
+    "plane_single_crossing_positive.json",
+    "plane_single_crossing_disjoint.json",
+    "plane_single_containment_positive.json",
+    "plane_single_containment_disjoint.json",
+    "sphere_single_crossing_positive.json",
+    "sphere_single_crossing_disjoint.json",
+    "sphere_single_containment_positive.json",
+    "sphere_single_containment_disjoint.json",
+    "plane_overlapping_members.json"
+  ],
+  "calibration": {
+    "version": 1,
+    "baseline_revision": "c1202ee2831c3be6afa20053b62b98934ca9459c",
+    "repaired_revision": "9968b8ee331ad5ac74c226b13b7320da84ec7116",
+    "primaries": [
+      {
+        "path": "plane_later_member_crossing.json",
+        "surface": "plane",
+        "mechanism": "crossing",
+        "target": "target"
+      },
+      {
+        "path": "plane_later_member_containment.json",
+        "surface": "plane",
+        "mechanism": "containment",
+        "target": "point"
+      },
+      {
+        "path": "plane_constructed_unequal_members.json",
+        "surface": "plane",
+        "mechanism": "split",
+        "target": "target"
+      },
+      {
+        "path": "sphere_later_member_crossing.json",
+        "surface": "sphere",
+        "mechanism": "crossing",
+        "target": "target"
+      },
+      {
+        "path": "sphere_later_member_containment.json",
+        "surface": "sphere",
+        "mechanism": "containment",
+        "target": "point"
+      },
+      {
+        "path": "sphere_constructed_unequal_members.json",
+        "surface": "sphere",
+        "mechanism": "split",
+        "target": "target"
+      }
+    ],
+    "controls": [
+      {
+        "path": "plane_single_crossing_positive.json",
+        "surface": "plane",
+        "kind": "crossing_positive",
+        "target": "target"
+      },
+      {
+        "path": "plane_single_crossing_disjoint.json",
+        "surface": "plane",
+        "kind": "crossing_disjoint",
+        "target": "target"
+      },
+      {
+        "path": "plane_single_containment_positive.json",
+        "surface": "plane",
+        "kind": "containment_positive",
+        "target": "point"
+      },
+      {
+        "path": "plane_single_containment_disjoint.json",
+        "surface": "plane",
+        "kind": "containment_disjoint",
+        "target": "point"
+      },
+      {
+        "path": "sphere_single_crossing_positive.json",
+        "surface": "sphere",
+        "kind": "crossing_positive",
+        "target": "target"
+      },
+      {
+        "path": "sphere_single_crossing_disjoint.json",
+        "surface": "sphere",
+        "kind": "crossing_disjoint",
+        "target": "target"
+      },
+      {
+        "path": "sphere_single_containment_positive.json",
+        "surface": "sphere",
+        "kind": "containment_positive",
+        "target": "point"
+      },
+      {
+        "path": "sphere_single_containment_disjoint.json",
+        "surface": "sphere",
+        "kind": "containment_disjoint",
+        "target": "point"
+      }
+    ],
+    "observations": [
+      {
+        "path": "plane_later_member_crossing_reversed.json",
+        "surface": "plane"
+      },
+      {
+        "path": "plane_later_member_crossing_empty_include.json",
+        "surface": "plane"
+      },
+      {
+        "path": "plane_later_member_containment_reversed.json",
+        "surface": "plane"
+      },
+      {
+        "path": "plane_later_member_containment_empty_include.json",
+        "surface": "plane"
+      },
+      {
+        "path": "plane_constructed_unequal_members_reversed.json",
+        "surface": "plane"
+      },
+      {
+        "path": "plane_constructed_unequal_members_empty_include.json",
+        "surface": "plane"
+      },
+      {
+        "path": "sphere_later_member_crossing_reversed.json",
+        "surface": "sphere"
+      },
+      {
+        "path": "sphere_later_member_crossing_empty_include.json",
+        "surface": "sphere"
+      },
+      {
+        "path": "sphere_later_member_containment_reversed.json",
+        "surface": "sphere"
+      },
+      {
+        "path": "sphere_later_member_containment_empty_include.json",
+        "surface": "sphere"
+      },
+      {
+        "path": "sphere_constructed_unequal_members_reversed.json",
+        "surface": "sphere"
+      },
+      {
+        "path": "sphere_constructed_unequal_members_empty_include.json",
+        "surface": "sphere"
+      },
+      {
+        "path": "plane_later_member_crossing_all.json",
+        "surface": "plane"
+      },
+      {
+        "path": "plane_later_member_crossing_include_target.json",
+        "surface": "plane"
+      },
+      {
+        "path": "plane_later_member_crossing_exclude_target.json",
+        "surface": "plane"
+      },
+      {
+        "path": "sphere_later_member_crossing_all.json",
+        "surface": "sphere"
+      },
+      {
+        "path": "sphere_later_member_crossing_include_target.json",
+        "surface": "sphere"
+      },
+      {
+        "path": "sphere_later_member_crossing_exclude_target.json",
+        "surface": "sphere"
+      },
+      {
+        "path": "plane_overlapping_members.json",
+        "surface": "plane"
+      }
+    ]
+  }
+}

@@ -1,5 +1,7 @@
 #![cfg(unix)]
 
+#[path = "../src/predicate/calibration.rs"]
+mod calibration;
 #[path = "../src/predicate/case.rs"]
 mod case;
 #[path = "../src/predicate/oracle.rs"]
@@ -607,7 +609,7 @@ fn test_manifest_shape_and_corpus_paths_are_explicit() {
     assert!(serde_json::from_value::<runner::WorkersManifest>(value).is_err());
 
     let input = Path::new("/recorded/corpus.json");
-    let paths = runner::case_paths(
+    let (paths, _) = runner::replay_input(
         input,
         br#"{"version":1,"cases":["sphere/a.json","plane/b.json"]}"#,
     )
@@ -626,9 +628,9 @@ fn test_manifest_shape_and_corpus_paths_are_explicit() {
         br#"{"version":2,"cases":["case.json"]}"#.as_slice(),
         br#"{"version":1,"cases":["case.json"],"extra":true}"#.as_slice(),
     ] {
-        assert!(runner::case_paths(input, bytes).is_err());
+        assert!(runner::replay_input(input, bytes).is_err());
     }
-    assert_eq!(runner::case_paths(input, b"{").unwrap(), [input]);
+    assert_eq!(runner::replay_input(input, b"{").unwrap().0, [input]);
 }
 
 #[test]

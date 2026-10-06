@@ -62,3 +62,67 @@ Panic evidence requires exit 101 and a standard Rust panic line. The report reta
 Exit zero does not mean that the engines agree. Read the per-worker `agreement` fields. Historical calibration is a separate judgment.
 
 The parent catches unwinding panics only around reference evaluation. Worker search panics remain uncaught, so their process exits and stderr can be examined. The [worker protocol](predicate-worker.md) describes the fresh-index route and its records.
+
+## Historical calibration
+
+The recorded Intersects corpus includes an optional `calibration` plan. Its version is 1. It declares `baseline_revision`, `repaired_revision`, `primaries`, `controls` and `observations`. A primary has `path`, `surface`, `mechanism` and `target`; a control has `path`, `surface`, `kind` and `target`; an observation has `path` and `surface`. The checked-in [corpus](../cases/intersects/corpus.json) is a complete example.
+
+The plan declares obligations. It does not choose which evidence counts. Each surface requires exactly one primary for each mechanism (`crossing`, `containment`, `split`) and one control of each kind (`crossing_positive`, `crossing_disjoint`, `containment_positive`, `containment_disjoint`). Plan paths must be unique, consist of normal relative path components, and equal the corpus path set. Observation counts may grow without changing these obligations.
+
+The pins must match the verified baseline and repaired builds. The reference must use the repaired revision. A malformed plan prevents replay. An incomplete or inconsistent but well-formed plan still permits ordinary replay and yields inconclusive calibration. Without a plan there is no historical claim or calibration artifact. The plan is captured before worker preflight, so a preflight failure can still produce an inconclusive calibration record.
+
+`calibration.json` names `report.json` and its SHA-256 digest, including the final newline. Keep the two files together. Classification uses only admitted evidence retained in that report, without rereading child directories. It records actual baseline, repaired and reference revisions; per-primary verdicts; control outcomes; repaired agreement for every declared case; and qualification for each surface. Reasons are sorted and unique. An unavailable or unjudged case stops dependent checks; independent plan, build and control reasons remain visible.
+
+A crossing primary requires a selected target with proper crossings in a later query member, no crossing in member zero, and no containment in either direction. The same later member must have a seed with edges, a nonempty candidate range and a first indexed level greater than its query level. Its edge endpoints must fit member zero's bounds. A containment primary requires an indexed Point inside a later query member and outside member zero, without crossings or reverse containment. Its matching seed must have a nonempty candidate range and a first indexed level no greater than its query level.
+
+A split primary has the crossing-only witness and a split-eligible seed whose edge endpoints exceed member zero's bounds. Seed member sizes and edge indices must fit their actual owning raw member. Initial seeds describe entry eligibility, not an execution trace. Baseline and repaired seed vectors, clipper settings, cell counts and sidecar availability must match. Admission checks each worker's header, segment layout, stable IDs, filter and selected IDs against its case and build. Segment identifiers and process paths may differ, as may the recovered mapping from stable IDs to document numbers.
+
+For crossing and containment, reproduction requires a completed baseline result missing exactly the target with no spurious hits. For split, it requires an admitted query-stage, main-thread Rust bounds panic at `query_edge_provider.rs`. The parsed length must equal member zero's vertex count, and the parsed index must match the first out-of-bounds endpoint read of an eligible seed edge. The evidence retains both numbers in `panic_bounds`. A panic elsewhere in that file, such as an invalid member lookup, does not meet this binding merely by naming the file. A bounds panic at `intersects.rs` is an unexpected route. Full comparisons and panic evidence remain recorded even when calibration is inconclusive. Every single-member control must have its declared raw geometry and witness shape and must agree on both builds. A disjoint point control tests that a point outside the query is excluded.
+
+Primary verdicts are:
+
+- `reproduced`: The intended baseline failure, raw witness, seeds, build bindings and surface controls meet their obligations.
+- `not_reproduced`: An eligible baseline run agrees for a miss primary, or completes for a split primary. A completed split's semantic difference is recorded separately.
+- `inconclusive`: Missing evidence or a failed obligation prevents the historical judgment.
+
+`observed_pattern` records the expected baseline outcome even if another obligation prevents `reproduced`. It does not imply that the repaired engine agrees. Repaired agreement is reported separately. Agreement outcomes are `agrees` for an admitted equal answer, `disagrees` for an admitted unequal answer, and `inconclusive` when the worker cannot establish agreement. A control's `passed` flag requires its raw shape, both agreements and consistent diagnostics.
+
+A surface is `qualified` only when the plan and build bindings are valid, all four controls pass, all three mechanisms reproduce, all its repaired cases agree, and the case evidence checks pass. `cases_consistent` covers case presence, raw admission, declared surface and diagnostic consistency. Both surfaces must qualify for overall qualification. Baseline outcomes for observation cases do not have to agree. Calibration does not change replay's exit status.
+
+## Calibration reasons
+
+These names form the closed reason vocabulary. The report supplies the underlying comparison, protocol issue, input outcome or process evidence.
+
+| Reason | Meaning |
+| --- | --- |
+| `builds_unavailable` | Worker preflight did not establish all three build identities. |
+| `case_missing` | The report has no unique observation for the declared case path. |
+| `case_unjudged` | The raw reference did not admit the case with its recorded expectation. |
+| `comparison_unavailable` | A successful worker has no admitted semantic comparison. |
+| `control_failed` | The surface's four control obligations did not all pass. |
+| `control_matrix` | The plan lacks exactly one control of each kind on each surface. |
+| `control_shape_mismatch` | A control's raw geometry or witness does not test its declared obligation. |
+| `corpus_mismatch` | Plan paths differ from corpus paths, or corpus paths repeat. |
+| `diagnostics_divergence` | Admitted seeds, clipper settings, cell counts or sidecar availability differ between builds. |
+| `diagnostics_shape_mismatch` | Seed member sizes, edge indices, index ranges or levels are inconsistent. |
+| `diagnostics_unavailable` | One or both workers lack admitted diagnostic facts. |
+| `duplicate_plan_path` | The plan declares the same path more than once. |
+| `invalid_plan_path` | A plan path is empty or contains a non-normal path component. |
+| `panic_unbound` | The bounds message cannot be parsed or does not match an eligible seed's first failing endpoint. |
+| `plan_version` | The calibration plan has an unsupported version. |
+| `primary_matrix` | The plan lacks exactly one primary of each mechanism on each surface. |
+| `protocol_violation` | The worker observation contains a protocol issue. |
+| `reference_revision_mismatch` | The actual reference revision does not match the repaired pin. |
+| `repaired_failed` | At least one required repaired case lacks agreement. |
+| `revision_mismatch` | Worker revisions differ from the declared pins, or both pins are equal. |
+| `run_incomplete` | Replay did not finish the corpus. |
+| `seed_ineligible` | No seed of the raw witness member meets the mechanism's preconditions. |
+| `surface_mismatch` | The case surface differs from its plan declaration. |
+| `unexpected_difference` | A miss primary has a completed difference other than the sole target miss. |
+| `unexpected_panic` | A panic does not have the intended mechanism, thread, stage or message. |
+| `unexpected_route` | A query-stage main-thread bounds panic came from another source file. |
+| `witness_mismatch` | The target lacks the required raw geometric witness. |
+| `worker_error` | The worker recorded an ordinary setup or query error. |
+| `worker_exit` | The process failed without recognized panic, timeout or ordinary error evidence, or supervision failed. |
+| `worker_missing` | The report has no worker observation for the role. |
+| `worker_timeout` | The worker exceeded its deadline. |

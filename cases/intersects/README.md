@@ -20,6 +20,20 @@ Each expected set comes from the geometric construction and is checked by the
 raw reference tests. These tests do not establish an engine result or a traversal
 mechanism. Replay calibration must check the workers after normal ingestion.
 
+`corpus.json` fixes the order of 33 literal cases and declares their historical
+calibration obligations. Six primaries cover crossing, point containment and
+unequal-member splitting on both surfaces. Each primary has a member-reversed
+case and an empty-Include case. Each crossing primary also has All, target
+Include and target Exclude cases. Eight single-member controls cover positive
+and disjoint crossing and point containment. One Plane case places the indexed
+polygon inside two overlapping query members.
+
+The eight single-member controls must agree on both builds. The remaining
+nineteen cases retain baseline observations without assuming a historical
+failure or cure. Every repaired case must agree. Eligibility, the particular
+baseline failure and repaired agreement are separate checks, described in
+[predicate replay](../../docs/predicate-replay.md).
+
 A case requires version, name, surface, documents, query, filter, sidecar, margin
 and expected. Each document has a unique nonempty id and a raw GeoJSON geometry.
 The expected object records oracle_version and sorted unique ids. Filter mode is

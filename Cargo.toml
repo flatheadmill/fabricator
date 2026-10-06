@@ -51,6 +51,10 @@ path = "tests/predicate_worker.rs"
 name = "predicate_runner"
 path = "tests/predicate_runner.rs"
 
+[[test]]
+name = "predicate_calibration"
+path = "tests/predicate_calibration.rs"
+
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

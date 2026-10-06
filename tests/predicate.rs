@@ -575,3 +575,136 @@ fn test_rejection_records_stable_id_family_and_raw_location() {
         rejection
     );
 }
+
+#[test]
+fn test_recorded_corpus_has_thirty_three_judged_cases() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("cases/intersects");
+    let corpus: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(root.join("corpus.json")).unwrap()).unwrap();
+    let paths = corpus["cases"].as_array().unwrap();
+    assert_eq!(paths.len(), 33);
+    let mut unique = std::collections::BTreeSet::new();
+    for path in paths {
+        let path = path.as_str().unwrap();
+        assert!(unique.insert(path));
+        let case: Case = serde_json::from_slice(&std::fs::read(root.join(path)).unwrap()).unwrap();
+        assert!(!case.sidecar);
+        assert_eq!(
+            evaluate(&case).unwrap().expected,
+            case.expected.ids,
+            "{path}"
+        );
+    }
+    assert_eq!(
+        corpus["calibration"]["primaries"].as_array().unwrap().len(),
+        6
+    );
+    assert_eq!(
+        corpus["calibration"]["controls"].as_array().unwrap().len(),
+        8
+    );
+    assert_eq!(
+        corpus["calibration"]["observations"]
+            .as_array()
+            .unwrap()
+            .len(),
+        19
+    );
+}
+
+#[test]
+fn test_recorded_controls_change_only_their_declared_dimension() {
+    for surface in ["plane", "sphere"] {
+        for name in [
+            "later_member_crossing",
+            "later_member_containment",
+            "constructed_unequal_members",
+        ] {
+            let base = fixture(surface, name);
+            let reversed = fixture(surface, &format!("{name}_reversed"));
+            let mut expected = base.clone();
+            expected.name = reversed.name.clone();
+            let Geometry::MultiPolygon { coordinates } = &mut expected.query else {
+                panic!()
+            };
+            coordinates.reverse();
+            assert_eq!(reversed, expected);
+            let empty = fixture(surface, &format!("{name}_empty_include"));
+            expected = base.clone();
+            expected.name = empty.name.clone();
+            expected.filter = Filter::Include { ids: vec![] };
+            expected.expected.ids.clear();
+            assert_eq!(empty, expected);
+        }
+        for (suffix, filter, ids) in [
+            ("all", Filter::All {}, vec!["target".to_owned()]),
+            (
+                "include_target",
+                Filter::Include {
+                    ids: vec!["target".into()],
+                },
+                vec!["target".into()],
+            ),
+            (
+                "exclude_target",
+                Filter::Exclude {
+                    ids: vec!["target".into()],
+                },
+                vec![],
+            ),
+        ] {
+            let case = fixture(surface, &format!("later_member_crossing_{suffix}"));
+            let mut expected = fixture(surface, "later_member_crossing");
+            expected.name = case.name.clone();
+            expected.filter = filter;
+            expected.expected.ids = ids;
+            assert_eq!(case, expected);
+        }
+    }
+}
+
+#[test]
+fn test_single_member_controls_exercise_the_named_witnesses() {
+    for surface in ["plane", "sphere"] {
+        for (stem, target) in [("crossing", "target"), ("containment", "point")] {
+            for positive in [false, true] {
+                let name = format!(
+                    "single_{stem}_{}",
+                    if positive { "positive" } else { "disjoint" }
+                );
+                let case = fixture(surface, &name);
+                let base = fixture(surface, &format!("later_member_{stem}"));
+                let Geometry::MultiPolygon { coordinates } = base.query else {
+                    panic!()
+                };
+                assert_eq!(
+                    case.query,
+                    Geometry::Polygon {
+                        coordinates: coordinates[usize::from(positive)].clone()
+                    }
+                );
+                assert_eq!(case.documents, base.documents);
+                let judgment = evaluate(&case).unwrap();
+                let witness = &judgment.witnesses[target];
+                assert_eq!(witness.hit_without_filter, positive);
+                assert!(witness.selected);
+                assert_eq!(witness.query_member_vertex_in_indexed, [false]);
+                assert_eq!(
+                    witness.crossings_by_query_member,
+                    [if stem == "crossing" && positive { 4 } else { 0 }]
+                );
+                assert_eq!(
+                    witness.indexed_vertex_in_query_member,
+                    [stem == "containment" && positive]
+                );
+            }
+        }
+    }
+    let overlap = fixture("plane", "overlapping_members");
+    let judgment = evaluate(&overlap).unwrap();
+    assert_eq!(judgment.expected, ["target"]);
+    assert_eq!(
+        judgment.witnesses["target"].indexed_vertex_in_query_member,
+        [true, true]
+    );
+}

@@ -204,9 +204,14 @@ pub struct Completed {
     pub actual: Vec<String>,
 }
 
-pub fn write_json(path: &Path, value: &impl Serialize) -> Result<()> {
+pub fn json_bytes(value: &impl Serialize) -> Result<Vec<u8>> {
     let mut bytes = serde_json::to_vec_pretty(value)?;
     bytes.push(b'\n');
+    Ok(bytes)
+}
+
+pub fn write_json(path: &Path, value: &impl Serialize) -> Result<()> {
+    let bytes = json_bytes(value)?;
     let temporary = path.with_extension("json.tmp");
     let mut file = OpenOptions::new()
         .write(true)
