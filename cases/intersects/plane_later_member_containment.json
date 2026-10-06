@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "name": "plane_later_member_containment",
+  "surface": "plane",
+  "documents": [
+    {
+      "id": "point",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          81.0,
+          40.5
+        ]
+      }
+    },
+    {
+      "id": "decoy",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -125.99999999999999,
+              -62.99999999999999
+            ],
+            [
+              -108.0,
+              -62.99999999999999
+            ],
+            [
+              -108.0,
+              -54.0
+            ],
+            [
+              -125.99999999999999,
+              -54.0
+            ],
+            [
+              -125.99999999999999,
+              -62.99999999999999
+            ]
+          ]
+        ]
+      }
+    }
+  ],
+  "query": {
+    "type": "MultiPolygon",
+    "coordinates": [
+      [
+        [
+          [
+            18.0,
+            9.0
+          ],
+          [
+            36.0,
+            9.0
+          ],
+          [
+            36.0,
+            18.0
+          ],
+          [
+            18.0,
+            18.0
+          ],
+          [
+            18.0,
+            9.0
+          ]
+        ]
+      ],
+      [
+        [
+          [
+            72.0,
+            36.0
+          ],
+          [
+            90.0,
+            36.0
+          ],
+          [
+            90.0,
+            45.0
+          ],
+          [
+            72.0,
+            45.0
+          ],
+          [
+            72.0,
+            36.0
+          ]
+        ]
+      ]
+    ]
+  },
+  "filter": {
+    "mode": "none"
+  },
+  "sidecar": true,
+  "margin": 1e-09,
+  "expected": {
+    "oracle_version": "intersects-uv-v1",
+    "ids": [
+      "point"
+    ]
+  }
+}
