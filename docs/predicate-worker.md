@@ -1,6 +1,6 @@
 # Predicate worker protocol
 
-The predicate binary can run a recorded Intersects case in a separate process.
+The predicate binary can run a recorded Intersects or CoveredBy case in a separate process.
 It creates one fresh index through normal ingestion, checks the stored document
 IDs, and records setup facts before constructing or running the query. It does
 not evaluate the reference answer or skip a query with an empty filter.
@@ -48,6 +48,10 @@ segment and document counts, stored IDs, selected IDs, filter and sidecar state.
 It also records diagnostic clipper options and the query cells' overlapping
 index ranges, levels, member IDs and edge bounds. These are recomputed setup
 facts, not a traversal trace. Intersects builds its own query index.
+For CoveredBy, diagnostics clip each query member separately, in descending
+vertex-count order, as Within does. The seed's member is its raw input position;
+member_zero_vertices is the size of the sole member in that local query index.
+These setup cells do not record sibling dispatch or prove a search branch ran.
 An empty index range has a null first_index_level, not a level-zero sentinel.
 
 A successful worker writes result.json with the verified identity, case digest
@@ -63,3 +67,7 @@ data or switch ingestion routes.
 Run `cargo test --test predicate_worker` for ingestion, ID recovery, filter,
 identity-admission and record-writing tests. Those tests use synthetic stamps
 and do not establish the source identity of a calibration build.
+
+The [CoveredBy cases](../cases/covered_by/README.md) exercise multipart sibling
+coverage through this same worker path. Their reference admits only disjoint,
+single-ring query polygons with boundary clearance.

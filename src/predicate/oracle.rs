@@ -7,8 +7,8 @@ use tantivy::spatial::sphere::Sphere;
 use tantivy::spatial::surface::Surface;
 
 use super::case::{
-    AmbiguousReason, Case, Family, Geometry, InvalidReason, Location, Point, Reason, Rejection,
-    SurfaceKind, UnsupportedReason, ORACLE_VERSION,
+    AmbiguousReason, Case, Family, Geometry, InvalidReason, Location, Point, Predicate, Reason,
+    Rejection, SurfaceKind, UnsupportedReason,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -18,6 +18,8 @@ pub struct Witness {
     pub crossings_by_query_member: Vec<usize>,
     pub indexed_vertex_in_query_member: Vec<bool>,
     pub query_member_vertex_in_indexed: Vec<bool>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub covered_by_query_member: Vec<Vec<bool>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -257,36 +259,58 @@ fn boundary_incidence<S: Surface>(a: &[Member<S>], b: &[Member<S>], margin: f64)
     false
 }
 
-fn topology<S: Surface>(indexed: &[Member<S>], query: &[Member<S>], selected: bool) -> Witness {
+fn topology<S: Surface>(
+    indexed: &[Member<S>],
+    query: &[Member<S>],
+    selected: bool,
+    predicate: Predicate,
+) -> Witness {
     let mut crossings = vec![0; query.len()];
     let mut indexed_inside = vec![false; query.len()];
     let mut query_inside = vec![false; query.len()];
+    let mut covered = Vec::new();
     for a in indexed {
+        let mut member_covered = Vec::new();
         for (j, b) in query.iter().enumerate() {
+            let mut pair_crossings = 0;
             for ae in a.points.windows(2) {
                 let mut crosser = S::EdgeCrosser::new(&ae[0], &ae[1]);
                 for be in b.points.windows(2) {
                     if crosser.crossing_sign_two(&be[0], &be[1]) > 0 {
-                        crossings[j] += 1;
+                        pair_crossings += 1;
                     }
                 }
             }
+            crossings[j] += pair_crossings;
             if b.closed {
                 indexed_inside[j] |= a.uv.iter().any(|&p| inside(p, &b.uv));
             }
             if a.closed {
                 query_inside[j] |= b.uv.iter().any(|&p| inside(p, &a.uv));
             }
+            if predicate == Predicate::CoveredBy {
+                member_covered.push(pair_crossings == 0 && inside(a.uv[0], &b.uv));
+            }
+        }
+        if predicate == Predicate::CoveredBy {
+            covered.push(member_covered);
         }
     }
+    let hit_without_filter = match predicate {
+        Predicate::Intersects => {
+            crossings.iter().any(|&n| n > 0)
+                || indexed_inside.iter().any(|&yes| yes)
+                || query_inside.iter().any(|&yes| yes)
+        }
+        Predicate::CoveredBy => covered.iter().all(|member| member.iter().any(|&yes| yes)),
+    };
     Witness {
-        hit_without_filter: crossings.iter().any(|&n| n > 0)
-            || indexed_inside.iter().any(|&yes| yes)
-            || query_inside.iter().any(|&yes| yes),
+        hit_without_filter,
         selected,
         crossings_by_query_member: crossings,
         indexed_vertex_in_query_member: indexed_inside,
         query_member_vertex_in_indexed: query_inside,
+        covered_by_query_member: covered,
     }
 }
 
@@ -298,6 +322,31 @@ fn evaluate_surface<S: Surface>(case: &Case) -> Result<Judgment, Rejection> {
         },
         case.margin,
     )?;
+    if case.predicate == Predicate::CoveredBy {
+        for i in 0..query.len() {
+            for j in i + 1..query.len() {
+                let a = std::slice::from_ref(&query[i]);
+                let b = std::slice::from_ref(&query[j]);
+                let at = Location::Query {
+                    path: format!("/coordinates/{j}"),
+                };
+                if boundary_incidence(a, b, case.margin) {
+                    return Err(ambiguous(
+                        at,
+                        case.query.family(),
+                        AmbiguousReason::BoundaryIncidence,
+                    ));
+                }
+                if topology(a, b, false, Predicate::Intersects).hit_without_filter {
+                    return Err(Rejection::unsupported(
+                        at,
+                        Some(case.query.family()),
+                        UnsupportedReason::QueryMembersOverlap,
+                    ));
+                }
+            }
+        }
+    }
     let mut expected = Vec::new();
     let mut witnesses = BTreeMap::new();
     for doc in &case.documents {
@@ -314,7 +363,12 @@ fn evaluate_surface<S: Surface>(case: &Case) -> Result<Judgment, Rejection> {
                 AmbiguousReason::BoundaryIncidence,
             ));
         }
-        let witness = topology(&geometry, &query, case.filter.selected(&doc.id));
+        let witness = topology(
+            &geometry,
+            &query,
+            case.filter.selected(&doc.id),
+            case.predicate,
+        );
         if witness.hit_without_filter && witness.selected {
             expected.push(doc.id.clone());
         }
@@ -322,7 +376,7 @@ fn evaluate_surface<S: Surface>(case: &Case) -> Result<Judgment, Rejection> {
     }
     expected.sort();
     Ok(Judgment {
-        version: ORACLE_VERSION.into(),
+        version: case.predicate.oracle_version().into(),
         expected,
         witnesses,
     })
@@ -330,15 +384,7 @@ fn evaluate_surface<S: Surface>(case: &Case) -> Result<Judgment, Rejection> {
 
 pub fn evaluate(case: &Case) -> Result<Judgment, Rejection> {
     case.validate_structure()?;
-    case.query.supported(&Location::Query {
-        path: String::new(),
-    })?;
-    for doc in &case.documents {
-        doc.geometry.supported(&Location::Document {
-            id: doc.id.clone(),
-            path: String::new(),
-        })?;
-    }
+    case.validate_supported()?;
     match case.surface {
         SurfaceKind::Plane => evaluate_surface::<Plane>(case),
         SurfaceKind::Sphere => evaluate_surface::<Sphere>(case),

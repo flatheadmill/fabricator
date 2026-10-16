@@ -47,6 +47,7 @@ fn sample(surface: SurfaceKind, indexed: Geometry, query: Geometry) -> Case {
     Case {
         version: 1,
         name: "analytic".into(),
+        predicate: case::Predicate::Intersects,
         surface,
         documents: vec![Document {
             id: "target".into(),

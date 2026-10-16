@@ -3,7 +3,7 @@ use std::path::{Component, Path};
 
 use serde::{Deserialize, Serialize};
 
-use super::case::{Case, Geometry, SurfaceKind};
+use super::case::{Case, Geometry, Predicate, SurfaceKind, ORACLE_VERSION};
 use super::oracle::{Judgment, Witness};
 use super::protocol::{self, Diagnostics, Result, Seed, Stage};
 use super::runner::{
@@ -96,6 +96,7 @@ pub enum Reason {
     InvalidPlanPath,
     PanicUnbound,
     PlanVersion,
+    PredicateMismatch,
     PrimaryMatrix,
     ProtocolViolation,
     ReferenceRevisionMismatch,
@@ -325,6 +326,9 @@ fn case_evidence<'a>(
     else {
         return Err(Reason::CaseUnjudged);
     };
+    if case.predicate != Predicate::Intersects || judgment.version != ORACLE_VERSION {
+        return Err(Reason::PredicateMismatch);
+    }
     Ok((observation, case, judgment))
 }
 

@@ -59,6 +59,10 @@ path = "tests/predicate_calibration.rs"
 name = "predicate_coverage"
 path = "tests/predicate_coverage.rs"
 
+[[test]]
+name = "predicate_within"
+path = "tests/predicate_within.rs"
+
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

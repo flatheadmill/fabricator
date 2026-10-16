@@ -110,6 +110,7 @@ These names form the closed reason vocabulary. The report supplies the underlyin
 | `invalid_plan_path` | A plan path is empty or contains a non-normal path component. |
 | `panic_unbound` | The bounds message cannot be parsed or does not match an eligible seed's first failing endpoint. |
 | `plan_version` | The calibration plan has an unsupported version. |
+| `predicate_mismatch` | Historical Intersects calibration received another predicate or reference version. |
 | `primary_matrix` | The plan lacks exactly one primary of each mechanism on each surface. |
 | `protocol_violation` | The worker observation contains a protocol issue. |
 | `reference_revision_mismatch` | The actual reference revision does not match the repaired pin. |

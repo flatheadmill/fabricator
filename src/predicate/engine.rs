@@ -18,9 +18,10 @@ use tantivy::spatial::plane::Plane;
 use tantivy::spatial::region_coverer::CovererOptions;
 use tantivy::spatial::sphere::Sphere;
 use tantivy::spatial::surface::Surface;
+use tantivy::spatial::within::Within;
 use tantivy::{DocAddress, Index, IndexWriter, ReloadPolicy, Searcher, TantivyDocument};
 
-use super::case::{Case, Filter, Location, SurfaceKind};
+use super::case::{Case, Filter, Predicate, SurfaceKind};
 use super::protocol::{
     self, ClipperSettings, Completed, Context, Diagnostics, Header, Identity, Observed, Result,
     Seed, Stage, StoredId, WorkerError, WorkerRequest,
@@ -96,7 +97,52 @@ fn query_set<S: Surface>(case: &Case) -> Result<GeometrySet<S>> {
     Ok(to_geometry_set(&geometry.project::<S>(), 0))
 }
 
-fn direct<S: Surface>(
+fn query_seeds<S: Surface>(
+    set: &GeometrySet<S>,
+    members: &[usize],
+    cells: &CellIndexReader<'_>,
+    options: &ClipOptions,
+) -> Result<Vec<Seed>> {
+    // These cells supply diagnostics only. Each query constructs its own index.
+    let clipped = Clipper::new(options.clone()).build(std::slice::from_ref(set));
+    let mut seeds = Vec::new();
+    for cell in &clipped.cells {
+        let (start, end) = cells.range_for_cell(cell.cell_id, 0, cells.cell_count());
+        let first_index_level = if start < end {
+            Some(cells.cell_id_at(start).level())
+        } else {
+            None
+        };
+        for shape in &cell.shapes {
+            let member = set
+                .members
+                .get(shape.geometry_id.1 as usize)
+                .ok_or("clipped query references an absent member")?;
+            seeds.push(Seed {
+                cell_id: cell.cell_id.0.to_string(),
+                query_level: cell.cell_id.level(),
+                member: *members
+                    .get(shape.geometry_id.1 as usize)
+                    .ok_or("query member mapping is absent")? as u32,
+                contains_center: shape.contains_center,
+                edge_indices: shape.edge_indices.clone(),
+                member_vertices: member.vertices.len(),
+                member_zero_vertices: set
+                    .members
+                    .first()
+                    .ok_or("query has no members")?
+                    .vertices
+                    .len(),
+                index_start: start,
+                index_end: end,
+                first_index_level,
+            });
+        }
+    }
+    Ok(seeds)
+}
+
+fn direct<S: Surface + Clone>(
     case: &Case,
     searcher: &Searcher,
     root: &Path,
@@ -139,40 +185,32 @@ fn direct<S: Surface>(
     selected_ids.sort();
     let set = query_set::<S>(case)?;
     let options = ClipOptions::default();
-    // These cells supply diagnostics only. Intersects constructs its own index.
-    let clipped = Clipper::new(options.clone()).build(std::slice::from_ref(&set));
-    let mut seeds = Vec::new();
-    for cell in &clipped.cells {
-        let (start, end) = cells.range_for_cell(cell.cell_id, 0, cells.cell_count());
-        let first_index_level = if start < end {
-            Some(cells.cell_id_at(start).level())
-        } else {
-            None
-        };
-        for shape in &cell.shapes {
-            let member = set
-                .members
-                .get(shape.geometry_id.1 as usize)
-                .ok_or("clipped query references an absent member")?;
-            seeds.push(Seed {
-                cell_id: cell.cell_id.0.to_string(),
-                query_level: cell.cell_id.level(),
-                member: shape.geometry_id.1,
-                contains_center: shape.contains_center,
-                edge_indices: shape.edge_indices.clone(),
-                member_vertices: member.vertices.len(),
-                member_zero_vertices: set
-                    .members
-                    .first()
-                    .ok_or("query has no members")?
+    let seeds = match case.predicate {
+        Predicate::Intersects => query_seeds(
+            &set,
+            &(0..set.members.len()).collect::<Vec<_>>(),
+            &cells,
+            &options,
+        )?,
+        Predicate::CoveredBy => {
+            let mut order: Vec<_> = (0..set.members.len()).collect();
+            order.sort_by(|&a, &b| {
+                set.members[b]
                     .vertices
-                    .len(),
-                index_start: start,
-                index_end: end,
-                first_index_level,
+                    .len()
+                    .cmp(&set.members[a].vertices.len())
             });
+            let mut seeds = Vec::new();
+            for member in order {
+                let polygon = GeometrySet {
+                    members: vec![set.members[member].clone()],
+                    doc_id: set.doc_id,
+                };
+                seeds.extend(query_seeds(&polygon, &[member], &cells, &options)?);
+            }
+            seeds
         }
-    }
+    };
     let diagnostics = Diagnostics {
         header,
         segment_count: searcher.segment_readers().len(),
@@ -195,14 +233,26 @@ fn direct<S: Surface>(
     protocol::write_json(&root.join("diagnostics.json"), &diagnostics)?;
     *stage = Stage::Query;
     protocol::progress(root, context, *stage)?;
-    let query = Intersects::new(set, CovererOptions::default());
     let mut cache = EdgeCache::new(vec![EdgeReader::<S>::open(spatial.edges_bytes())], 100_000);
     let filter = if matches!(case.filter, Filter::None {}) {
         None
     } else {
         Some(&mask)
     };
-    let hits = query.search(&cells, filter, &mut cache, segment.max_doc());
+    let hits = match case.predicate {
+        Predicate::Intersects => Intersects::new(set, CovererOptions::default()).search(
+            &cells,
+            filter,
+            &mut cache,
+            segment.max_doc(),
+        ),
+        Predicate::CoveredBy => Within::new(set, CovererOptions::default()).search(
+            &cells,
+            filter,
+            &mut cache,
+            segment.max_doc(),
+        ),
+    };
     let mut actual: Vec<_> = ids
         .into_iter()
         .filter(|entry| hits.contains(entry.doc_id))
@@ -239,19 +289,8 @@ pub fn run(
         let case: Case = serde_json::from_slice(&bytes)?;
         case.validate_structure()
             .map_err(|e| format!("invalid case: {e:?}"))?;
-        case.query
-            .supported(&Location::Query {
-                path: String::new(),
-            })
-            .map_err(|e| format!("unsupported query: {e:?}"))?;
-        for doc in &case.documents {
-            doc.geometry
-                .supported(&Location::Document {
-                    id: doc.id.clone(),
-                    path: String::new(),
-                })
-                .map_err(|e| format!("unsupported document: {e:?}"))?;
-        }
+        case.validate_supported()
+            .map_err(|e| format!("unsupported case: {e:?}"))?;
         stage = Stage::Index;
         protocol::progress(&root, &context, stage)?;
         let index = build(&case, &root.join("index"))?;

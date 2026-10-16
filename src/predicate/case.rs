@@ -3,10 +3,28 @@ use std::collections::BTreeSet;
 use serde::{Deserialize, Serialize};
 
 pub const ORACLE_VERSION: &str = "intersects-uv-v1";
+pub const COVERED_BY_VERSION: &str = "covered-by-disjoint-uv-v1";
 // UV coordinates stay inside 0.95. This floor keeps ordinary clearance checks
 // above projection roundoff; it is not an exact-arithmetic error bound.
 pub const MIN_MARGIN: f64 = 1e-12;
 pub type Point = [f64; 2];
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Predicate {
+    #[default]
+    Intersects,
+    CoveredBy,
+}
+
+impl Predicate {
+    pub fn oracle_version(self) -> &'static str {
+        match self {
+            Self::Intersects => ORACLE_VERSION,
+            Self::CoveredBy => COVERED_BY_VERSION,
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -90,6 +108,7 @@ pub enum InvalidReason {
 pub enum UnsupportedReason {
     CaseVersion,
     OracleVersion,
+    QueryMembersOverlap,
     Family,
     Holes,
     Face,
@@ -303,6 +322,8 @@ pub struct Expected {
 pub struct Case {
     pub version: u32,
     pub name: String,
+    #[serde(default)]
+    pub predicate: Predicate,
     pub surface: SurfaceKind,
     pub documents: Vec<Document>,
     pub query: Geometry,
@@ -319,7 +340,7 @@ impl Case {
         if self.version != 1 {
             return Err(unsupported("/version", UnsupportedReason::CaseVersion));
         }
-        if self.expected.oracle_version != ORACLE_VERSION {
+        if self.expected.oracle_version != self.predicate.oracle_version() {
             return Err(unsupported(
                 "/expected/oracle_version",
                 UnsupportedReason::OracleVersion,
@@ -371,6 +392,41 @@ impl Case {
         }
         if self.documents.len() > 1024 {
             return Err(unsupported("/documents", UnsupportedReason::Size));
+        }
+        Ok(())
+    }
+
+    pub fn validate_supported(&self) -> Result<(), Rejection> {
+        let check = |geometry: &Geometry, at: Location| {
+            geometry.supported(&at)?;
+            if self.predicate == Predicate::CoveredBy
+                && !matches!(
+                    geometry,
+                    Geometry::Polygon { .. } | Geometry::MultiPolygon { .. }
+                )
+            {
+                return Err(Rejection::unsupported(
+                    at,
+                    Some(geometry.family()),
+                    UnsupportedReason::Family,
+                ));
+            }
+            Ok(())
+        };
+        check(
+            &self.query,
+            Location::Query {
+                path: String::new(),
+            },
+        )?;
+        for doc in &self.documents {
+            check(
+                &doc.geometry,
+                Location::Document {
+                    id: doc.id.clone(),
+                    path: String::new(),
+                },
+            )?;
         }
         Ok(())
     }

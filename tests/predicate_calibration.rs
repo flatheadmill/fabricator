@@ -273,6 +273,20 @@ fn test_complete_matrix_and_report_digest() {
 }
 
 #[test]
+fn test_calibration_refuses_other_predicates() {
+    for index in [0, 6, 14] {
+        let mut report = fixture();
+        report.cases[index].case.as_mut().unwrap().predicate = case::Predicate::CoveredBy;
+        let result = evaluate(&report);
+        assert!(!result.qualified);
+        assert!(result
+            .repaired
+            .iter()
+            .any(|case| case.reasons.contains(&Reason::PredicateMismatch)));
+    }
+}
+
+#[test]
 fn test_plan_requires_matrices_paths_and_actual_revisions() {
     let mut report = fixture();
     let plan = report
