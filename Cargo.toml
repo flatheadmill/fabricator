@@ -70,9 +70,9 @@ path = "tests/plane_relations.rs"
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tantivy = { path = "../tantivy/greenroom" }
+tantivy = { path = "../../tantivy/greenroom" }
 clap = { version = "4", features = ["derive"] }
-common = { package = "tantivy-common", path = "../tantivy/greenroom/common" }
+common = { package = "tantivy-common", path = "../../tantivy/greenroom/common" }
 sha2 = "0.10"
 
 [dev-dependencies]
