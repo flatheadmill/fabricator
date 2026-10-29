@@ -231,7 +231,6 @@ fn test_aligned_reference_coverage() {
 }
 
 #[test]
-#[ignore = "Within misses a contained polygon when the Plane descent splits an aligned edge"]
 fn test_aligned_subdivision_coverage() {
     let mut differences = Vec::new();
     for name in [

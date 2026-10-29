@@ -56,7 +56,7 @@ fn main() -> tantivy::Result<()> {
             segment_id: segment.segment_id().uuid_string(),
             max_doc: segment.max_doc(),
             num_deleted_docs: segment.num_deleted_docs(),
-            stats: sphere_stats_for_reader(&spatial_reader),
+            stats: sphere_stats_for_reader(&spatial_reader)?,
         });
     }
 

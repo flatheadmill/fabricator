@@ -173,7 +173,7 @@ fn direct<S: Surface + Clone>(
         CellIndexReader::open_with_doc_ids(spatial.cells_bytes(), spatial.doc_ids_bytes())
     } else {
         CellIndexReader::open(spatial.cells_bytes())
-    };
+    }?;
     let mut mask = BitSet::with_max_value(segment.max_doc());
     let mut selected_ids = Vec::new();
     for entry in &ids {

@@ -77,7 +77,7 @@ fn main() -> tantivy::Result<()> {
     for seg in searcher.segment_readers() {
         let spatial = seg.spatial_fields().get_field(field)?;
         if let Some(spatial_reader) = spatial {
-            let cell_reader = CellIndexReader::open(spatial_reader.cells_bytes());
+            let cell_reader = CellIndexReader::open(spatial_reader.cells_bytes())?;
             let edge_reader = EdgeReader::<Sphere>::open(spatial_reader.edges_bytes());
             let mut edge_cache = EdgeCache::new(vec![edge_reader], 100_000);
 

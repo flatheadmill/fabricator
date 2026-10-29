@@ -42,7 +42,7 @@ fn main() -> tantivy::Result<()> {
             None => continue,
         };
 
-        let cell_reader = CellIndexReader::open(spatial_reader.cells_bytes());
+        let cell_reader = CellIndexReader::open(spatial_reader.cells_bytes())?;
         let edge_reader = EdgeReader::<Sphere>::open(spatial_reader.edges_bytes());
         let geometry_count = edge_reader.geometry_count();
         let edge_cache = EdgeCache::new(vec![edge_reader], 100_000);
